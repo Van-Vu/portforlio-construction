@@ -1,10 +1,29 @@
 import pandas as pd
+import numpy as np
 
 def readcsv(filename):
     data = pd.read_csv(filename, header = 0, index_col = 0, parse_dates = True)
     data = data/100
     data.index = pd.to_datetime(data.index, format='%Y%m').to_period('M')
     return data
+
+def annualized_return(data):
+    monthly_returns = (data + 1).prod()**(1/data.shape[0]) - 1
+    return (monthly_returns + 1)**12 - 1
+
+def annualized_vol(data):
+    monthly_vol = data.std()
+    return monthly_vol * np.sqrt(12)
+
+def drawdown(starting_wealth, returns):
+    wealth_index = starting_wealth * (1 + returns).cumprod()
+    previous_peaks = wealth_index.cummax()
+    drawdowns = (wealth_index - previous_peaks) / previous_peaks
+    return pd.DataFrame({
+        "Wealth": wealth_index,
+        "Peaks" : previous_peaks,
+        "Drawdown": drawdowns
+    })
 
 def skewness(data):
     demeaned_return = (data - data.mean())**3
