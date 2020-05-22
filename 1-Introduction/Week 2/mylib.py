@@ -89,3 +89,17 @@ def cvar_gaussian(data, level = 5):
     elif isinstance(data, data.Series):
         values = data < - var_gaussian(data)
         return data[values].mean()
+
+def portfolio_ret(weights, ret):
+    return weights.T @ ret
+
+def portfolio_vol(weights, vol):
+    return (weights.T @ vol @ weights)**0.5
+
+def potfolio_frontier_2(num_points, history_return, cov):
+    portfolio_weights = [np.array([w, 1-w]) for w in np.linspace(0, 1, num_points)]
+    final_ret = [portfolio_ret(w, history_return) for w in portfolio_weights]
+    final_vol = [portfolio_vol(w, cov) for w in portfolio_weights]
+    frontier = pd.DataFrame({"Returns": final_ret, "Volatility": final_vol})
+    frontier.plot.line(y="Returns", x="Volatility")
+
