@@ -101,5 +101,33 @@ def potfolio_frontier_2(num_points, history_return, cov):
     final_ret = [portfolio_ret(w, history_return) for w in portfolio_weights]
     final_vol = [portfolio_vol(w, cov) for w in portfolio_weights]
     frontier = pd.DataFrame({"Returns": final_ret, "Volatility": final_vol})
-    frontier.plot.line(y="Returns", x="Volatility")
+    frontier.plot.line(y="Returns", x="Volatility", style=".-")
 
+from scipy.optimize import minimize
+def minimize_vol(target_return, history_return, covariance):
+    asset_number = history_return.shape[0]
+    init_guess = np.repeat(1/asset_number, asset_number)
+    bounds = ((0.0, 1.0),)*asset_number
+    return_constraint = {"type": "eq", 
+                        "args": (history_return,),
+                        "fun": lambda weight, history_return: portfolio_ret(weight, history_return) - target_return}
+    weightsum_constraint = {"type": "eq",
+                        "fun": lambda weights: np.sum(weights) - 1}
+
+    result = minimize(portfolio_vol, init_guess, method="SLSQP",
+        args=(covariance,),
+        constraints=(return_constraint, weightsum_constraint),
+        bounds = bounds)
+    return result.x
+
+def optimize_weights(num_points, history_return, cov):
+    target_list = np.linspace(history_return.min(), history_return.max(), num_points)
+    weights = [minimize_vol(target_return, history_return,cov) for target_return in target_list]
+    return weights
+
+def potfolio_frontier_n(num_points, history_return, cov):
+    portfolio_weights = optimize_weights(num_points, history_return, cov)
+    final_ret = [portfolio_ret(w, history_return) for w in portfolio_weights]
+    final_vol = [portfolio_vol(w, cov) for w in portfolio_weights]
+    frontier = pd.DataFrame({"Returns": final_ret, "Volatility": final_vol})
+    frontier.plot.line(y="Returns", x="Volatility", style=".-")    
