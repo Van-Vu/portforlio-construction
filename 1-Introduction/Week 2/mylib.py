@@ -130,4 +130,38 @@ def potfolio_frontier_n(num_points, history_return, cov):
     final_ret = [portfolio_ret(w, history_return) for w in portfolio_weights]
     final_vol = [portfolio_vol(w, cov) for w in portfolio_weights]
     frontier = pd.DataFrame({"Returns": final_ret, "Volatility": final_vol})
-    frontier.plot.line(y="Returns", x="Volatility", style=".-")    
+    return frontier.plot.line(y="Returns", x="Volatility", style=".-")
+
+def max_sharpe_ratio(riskfree_rate, history_return, covariance):
+    asset_number = history_return.shape[0]
+    init_guess = np.repeat(1/asset_number, asset_number)
+    bounds = ((0.0, 1.0),)*asset_number
+    weightsum_constraint = {"type": "eq",
+                        "fun": lambda weights: np.sum(weights) - 1}
+
+    def neg_sharpe_ratio(weight, riskfree_rate, history_return, covariance):
+        portfolio_rets = portfolio_ret(weight, history_return)
+        portfolio_vols = portfolio_vol(weight, covariance)
+        neg_sharpe = - (portfolio_rets - riskfree_rate) / portfolio_vols
+        #print(neg_sharpe)
+        return neg_sharpe
+
+    result = minimize(neg_sharpe_ratio, init_guess, method="SLSQP",
+        args=(riskfree_rate, history_return, covariance,),
+        constraints=(weightsum_constraint),
+        bounds = bounds)
+    print("Optimizer:")
+    print(result)
+    return result.x
+
+def portfolio_frontier_n_with_msr(riskfree_rate, num_points, history_return, cov):
+    graph = potfolio_frontier_n(num_points, history_return, cov)
+    msr = max_sharpe_ratio(riskfree_rate, history_return, cov)
+    msr_ret = portfolio_ret(msr, history_return)
+    msr_vol = portfolio_vol(msr, cov)    
+    cml_x = [0.0, msr_vol]
+    cml_y = [riskfree_rate, msr_ret]
+    print("Capital Market Line:")
+    print("Volatility:", msr_vol)
+    print("Return:", msr_ret)
+    graph.plot(cml_x, cml_y, marker="o", linestyle="dashed")
