@@ -154,7 +154,12 @@ def max_sharpe_ratio(riskfree_rate, history_return, covariance):
     print(result)
     return result.x
 
-def portfolio_frontier_n_with_msr(riskfree_rate, num_points, history_return, cov):
+def gmv(cov):
+    asset_number = cov.shape[0]
+    gmv_weight = max_sharpe_ratio(0, np.repeat(1,asset_number), cov)
+    return gmv_weight
+
+def portfolio_frontier_n_with_msr(riskfree_rate, num_points, history_return, cov, show_ew = False, show_gmv = False):
     graph = potfolio_frontier_n(num_points, history_return, cov)
     msr = max_sharpe_ratio(riskfree_rate, history_return, cov)
     msr_ret = portfolio_ret(msr, history_return)
@@ -165,3 +170,14 @@ def portfolio_frontier_n_with_msr(riskfree_rate, num_points, history_return, cov
     print("Volatility:", msr_vol)
     print("Return:", msr_ret)
     graph.plot(cml_x, cml_y, marker="o", linestyle="dashed")
+    if show_ew:
+        asset_number = history_return.shape[0]
+        ew_weights = np.repeat(1/asset_number, asset_number)
+        ew_ret = portfolio_ret(ew_weights, history_return)
+        ew_vol = portfolio_vol(ew_weights, cov)
+        graph.plot(ew_vol, ew_ret, marker="o", markersize=10)
+    if show_gmv:
+        gmv_weights = gmv(cov)
+        gmv_ret = portfolio_ret(gmv_weights, history_return)
+        gmv_vol = portfolio_vol(gmv_weights, cov)
+        graph.plot(gmv_vol, gmv_ret, marker="o", markersize=8, color="blue")
