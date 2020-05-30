@@ -1,9 +1,10 @@
 import pandas as pd
 import numpy as np
 
-def readcsv(filename):
+def readcsv(filename, percentage = True):
     data = pd.read_csv(filename, header = 0, index_col = 0, parse_dates = True)
-    data = data/100
+    if percentage:
+        data = data/100
     data.index = pd.to_datetime(data.index, format='%Y%m').to_period('M')
     return data
 
