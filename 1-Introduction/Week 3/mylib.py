@@ -33,7 +33,7 @@ def skewness(data):
     demeaned_return = (data - data.mean())**3
     price = demeaned_return.mean()
     vol = data.std(ddof=0)**3
-    skewness = (price / vol).sort_values()
+    skewness = (price / vol)
     
     return skewness
 
@@ -41,7 +41,7 @@ def kurtosis(data):
     kdemeaned_return = (data - data.mean())**4
     kprice = kdemeaned_return.mean()
     kvol = data.std(ddof=0)**4
-    kurtosis = (kprice / kvol).sort_values()
+    kurtosis = (kprice / kvol)
     
     return kurtosis
 
@@ -182,3 +182,63 @@ def portfolio_frontier_n_with_msr(riskfree_rate, num_points, history_return, cov
         gmv_ret = portfolio_ret(gmv_weights, history_return)
         gmv_vol = portfolio_vol(gmv_weights, cov)
         graph.plot(gmv_vol, gmv_ret, marker="o", markersize=8, color="blue")
+
+def run_cppi(risky_assets_return, initial_wealth=1000, cash_rate=0.03, floor=0.8, multiplier=3, drawdown=None):
+    account_value = initial_wealth
+    peak = initial_wealth
+    months = risky_assets_return.shape[0]
+    safe_return = np.full_like(risky_assets_return, cash_rate/12)
+
+    account_history = pd.DataFrame().reindex_like(risky_assets_return)
+    cushion_history = pd.DataFrame().reindex_like(risky_assets_return)
+    risky_weight_history = pd.DataFrame().reindex_like(risky_assets_return)
+    floor_value = account_value * floor
+
+    for month in range(months):
+        #floor_value = account_value * floor
+        if drawdown is not None:
+            peak = np.maximum(peak, account_value)
+            floor_value = peak * (1 - drawdown)
+        cushion = (account_value - floor_value) / account_value
+        risky_weight = cushion * multiplier
+        risky_weight = np.minimum(risky_weight, 1)
+        risky_weight = np.maximum(risky_weight, 0)
+        risky_values = risky_weight * account_value * risky_assets_return.iloc[month]
+        safe_values = (1 - risky_weight) * account_value * safe_return[month]
+        account_value = account_value + risky_values + safe_values
+
+        account_history.iloc[month] = account_value
+        cushion_history.iloc[month] = cushion
+        risky_weight_history.iloc[month] = risky_weight
+
+    risky_wealth_return = initial_wealth*(1+risky_assets_return).cumprod()
+
+    return {
+        "AccountHistory": account_history,
+        "CushionHistory": cushion_history,
+        "RiskyWeightHistory": risky_weight_history,
+        "RiskOnlyReturn": risky_wealth_return
+    }
+
+def summary_stats(returns, cash_rate=0.03):
+    annualized_r = returns.aggregate(annualized_return)
+    annualized_v = returns.aggregate(annualized_vol)
+    sharpe = returns.aggregate(sharpe_ratio, risk_free_rate = cash_rate)
+    dd = returns.aggregate(lambda r: drawdown(r).Drawdown.min())
+    skew = returns.aggregate(skewness)
+    kurt = returns.aggregate(kurtosis)
+    var_hist = returns.aggregate(var_historic)
+    cvar_hist = returns.aggregate(cvar_historic)
+    var_cf = returns.aggregate(var_cornishfisher)
+
+    return pd.DataFrame({
+        "Annualized Returns": annualized_r,
+        "Annualized Volatility": annualized_v,
+        "Skewness": skew,
+        "Kurtosis": kurt,
+        "Max Drawdown": dd,
+        "VAR Historic 5%": var_hist,
+        "VAR Cornis-Fisher 5%": var_cf,
+        "CVAR Historic 5%": cvar_hist,
+        "Sharpe Ratio": sharpe
+    })    
