@@ -255,3 +255,14 @@ def gbm(n_years=10, n_scenarios=1000, mu=0.07, sigma=0.15, initial_price=100.0, 
         return initial_price * pd.DataFrame(rets_plus_1).cumprod()
     else:
         return pd.DataFrame(rets_plus_1-1)
+
+def discount(time_period, interest_rate):
+    return 1 / (1+interest_rate)**time_period
+
+def npv(liabilities, interest_rate):
+    dates= liabilities.index
+    discounts = discount(dates, interest_rate)
+    return (discounts*liabilities).sum()
+
+def funding_ratio(asset, liabilities, interest_rate):
+    return asset / npv(liabilities, interest_rate)            
